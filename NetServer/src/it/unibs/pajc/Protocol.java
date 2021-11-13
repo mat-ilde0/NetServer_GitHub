@@ -58,21 +58,24 @@ public class Protocol implements Runnable{
 					//leggere nella linea di comando del server
 					System.out.println("Processing request: " + request);
 					/*
-					 * stringa di risposta che si vuole mandare al client -> per varlo la mando nello stram in output.
+					 * stringa di risposta che si vuole mandare al client -> per farlo la mando nello stram in output.
 					 */
 					String command = request.toUpperCase();
 					
-					String response = (converToUpper) ? 
-							request.toUpperCase(): request.toLowerCase();
-				
-					if("!TOUPPER".equals(command))
+					if("!U".equals(command))
 						converToUpper = true;
-					else if("!TOLOWER".equals(command))
+					else if("!L".equals(command))
 						converToUpper = false;
 					
 					//se incontro questa stringa termino la comunicazione con il server
 					if("@QUIT".equals(command))
 						break;
+					
+					String response = (converToUpper) ? 
+							request.toUpperCase(): request.toLowerCase();
+				
+					
+					out.printf("\n%s\n", response);
 						
 				}
 				
