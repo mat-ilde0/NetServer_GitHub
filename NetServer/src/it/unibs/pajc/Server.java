@@ -39,7 +39,7 @@ public class Server {
 			
 		} catch (IOException ex) {
 			System.err.println("Errore di comunicazione:" + ex);
-		}
+		} 
 		
 		System.out.println("exit....");
 		

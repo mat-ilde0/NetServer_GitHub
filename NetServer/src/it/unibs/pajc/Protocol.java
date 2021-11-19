@@ -4,7 +4,10 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.function.Consumer;
 
 /*
  * in questo modo nel metodo run si va ad implementare la logica di comunicazione
@@ -12,6 +15,23 @@ import java.util.ArrayList;
 
 public class Protocol implements Runnable{
 	
+	private static HashMap<String, Consumer<ClientEvent>> commandMap; //questo in realtà è statico
+	static {
+		commandMap = new HashMap<>();
+		commandMap.put("@LIST", e -> e.sender.listClient(e.sender));
+		commandMap.put("@ALL", e -> e.sender.sendToAll(e.sender, e.getLastParameter()));
+		commandMap.put("@TIME", e -> e.sender.sendMessage(e.sender, LocalDateTime.now().toString()));
+		/*
+		 * in questo caso si vuole terminare l'esecuzione del client -> si crea un metodo close che chiude il client
+		 */
+		commandMap.put("@QUIT", e -> e.sender.close());
+		commandMap.put("@default@", e -> e.sender.sendMessage(e.sender, e.getLastParameter()));
+
+
+
+	}
+	
+	private Boolean isRunning = true;
 	private Socket client;
 	private String clientName;
 	/*
@@ -64,32 +84,15 @@ public class Protocol implements Runnable{
 				while((request = in.readLine()) != null) {
 					//leggere nella linea di comando del server
 					System.out.println("Processing request: " + request);
-					/*
-					 * stringa di risposta che si vuole mandare al client -> per farlo la mando nello stram in output.
-					 */
-					String command = request.toUpperCase();
-									
-					if("!U".equals(command))
-						converToUpper = true;
-					else if("!L".equals(command))
-						converToUpper = false;
-					//comando per stampare tutti i client connessi al server
-					else if("@LIST".equals(command))
-						//viewClients();
-						listClient(this);
 					
-					//se incontro questa stringa termino la comunicazione con il server
-					if("@QUIT".equals(command))
-						break;
-					else 
-						sendToAll(this, request);
+					ClientEvent event = ClientEvent.parse(this, request);
+					Consumer<ClientEvent> commandExe = event.command != null ?
+							commandMap.get(event.command.toUpperCase()) : 
+								commandMap.get("@default@"); 
 
 					
-					String response = (converToUpper) ? 
-							request.toUpperCase(): request.toLowerCase();
-				
+					commandExe.accept(event);
 					
-					out.printf("\n%s\n", response);
 						
 				}
 				
@@ -97,6 +100,8 @@ public class Protocol implements Runnable{
 			
 		} catch (Exception ex) {
 			ex.printStackTrace();
+		} finally {
+			clientList.remove(this);
 		}
 		
 	}
@@ -117,7 +122,7 @@ public class Protocol implements Runnable{
 	 * metodo che manda un messaggio al client che invoca il metodo : si scrive semplicemente sull'outputStream
 	 */
 	protected void sendMessage(Protocol sender, String message) {
-		this.out.printf("[%s] : %s", this.clientName, message);
+		this.out.printf("[%s] : %s", sender.clientName, message);
 		this.out.flush();
 	}
 	
@@ -130,9 +135,17 @@ public class Protocol implements Runnable{
 	
 	//dal prof
 	protected void listClient(Protocol sender) {
-		clientList.forEach(c -> this.sendMessage(sender, String.format(" %s ", c.clientName)));
+		clientList.forEach(c -> sendMessage(c, String.format(" %s ", c.clientName)));
 		
 		this.sendMessage(sender, "\n\r");
+	}
+	
+	/*
+	 * metodo che chiude il client -> la cosa più comoda è di introdurre una variabile booleana e finché è vera il client continua ad andare e si chiude 
+	 * quando queesta diventa falsa
+	 */
+	public void close() {
+		isRunning = false;
 	}
 
 }
